@@ -28,7 +28,7 @@ Welcome to the **EduReach E-Learning Platform** repository! This project is desi
 
 ### Prerequisites
 - Node.js and npm installed.
-- MongoDB setup (local or cloud).
+- MongoDB setup.
 
 
 ## 🤝 How to Contribute
@@ -49,12 +49,6 @@ We welcome contributions from the community! Here's how you can help:
    git push origin feature/your-feature-name
    ```
 5. **Submit a pull request** with a detailed description of your changes.
-
----
-
-## 📜 License
-
-This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
 
 ---
 
