@@ -1,0 +1,19 @@
+{
+  "name": "edureach-e-learning-website",
+  "version": "1.0.0",
+  "description": "Welcome to the **EduReach E-Learning Platform** repository! This project is designed to provide a seamless and interactive online learning experience. Whether you're a student, teacher, or lifelong learner, this platform offers courses, quizzes, and resources to help you achieve your educational goals.",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon EduReach-Backend/server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "mongoose": "^8.9.6",
+    "nodemon": "^3.1.9"
+  }
+}
