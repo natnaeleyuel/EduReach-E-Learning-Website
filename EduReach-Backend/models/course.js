@@ -16,7 +16,7 @@ const courseSchema = new mongoose.Schema(
                 Comment: {type: String, required: true},
             }
         ]
-    }
+    } 
 )
 
 export default mongoose.model('Course', courseSchema);
