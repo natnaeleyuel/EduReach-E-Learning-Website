@@ -1,6 +1,6 @@
-const mongoose = require('mongoose');
-
 // A SCHEMA IS A BLUEPRINT FOR A MONGOOSE MODEL, THIS IS SHEMA FOR A COURSE
+import mongoose from 'mongoose';
+
 const courseSchema = new mongoose.Schema(
     {
         title: {type: String, required: true},
