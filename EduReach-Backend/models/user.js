@@ -14,4 +14,11 @@ const userSchema = new mongoose.Schema(
     }
 )
 
+// Exclude the password hash from the response
+userSchema.methods.toJSON = function() {
+    const user = this.toObject();
+    delete user.hash;
+    return user;
+}
+
 export default mongoose.model('User', userSchema);

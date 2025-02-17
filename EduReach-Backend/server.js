@@ -6,6 +6,9 @@ import jwt from 'jsonwebtoken';
 import connectDB from './configuration/database.js';
 import User from './models/user.js';
 import Course from './models/course.js';
+import BlacklistedToken from './models/blacklistedToken.js';
+import limiter from './middleware/ratelimiter.js';
+import isEmailValid from './modules/deep-email-validator.js';
 
 const app =express();
 app.use(express.json());
@@ -15,11 +18,21 @@ app.use(cors())
 
 const secret = process.env.SECRET;
 
+// rate limiter
+app.use(limiter);
+
+// user information
 // user registration, login and logout
 app.post('/api/users/register', async (req, res) => {
-    const { name, email, password, role } = req.body;
-    const hash = bcrypt.hashSync(password, 10);
+    
     try{
+        const { name, email, password, role } = req.body;
+        const { valid, reason, validators } = await isEmailValid(email);
+        if(!valid) {
+            return res.status(400).json({ message: 'Invalid email address', reason: validators[reason] });
+        }
+        const hash = bcrypt.hashSync(password, 10);
+
         const user = new User({ name, email, hash, role });
         await user.save();
         res.status(201).json(user)
@@ -30,21 +43,95 @@ app.post('/api/users/register', async (req, res) => {
 })
 
 app.post('/api/users/login', async (req, res) => {
-    const { email, password} = req.body;
-    const user = await User.findOne({
-        email: email
-    })
+    try{
+        const { email, password} = req.body;
+        const user = await User.findOne({
+            email: email
+        })
 
-    isMatch = bcrypt.compareSync(password, user.hash);
-    if (user && isMatch) {
-        const token = jwt.sign({ email: user.email, id: user._id, role: user.role }, secret, { expiresIn: '1h'})
-        res.status(200).json({ user: user.email, token: token})
+        const isMatch = bcrypt.compareSync(password, user.hash);
+        if (user && isMatch) {
+            const token = jwt.sign({ email: user.email, id: user._id, role: user.role }, secret, { expiresIn: '1h'})
+            res.status(200).json({ user: user.email, token: token})
+        }
+        else {
+            res.status(400).json({ message: 'Invalid email or password'})
+        }
     }
-    else {
-        res.status(400).json({ message: 'Invalid email or password'})
+    catch (error) {
+        res.status(400).json({ message: error.message })
+        console.log(error.message)
+    }
+    
+})
+
+app.post('/api/users/logout', async (req, res) => {
+    try{
+        const authHeader = req.headers.authorization;
+        if (!authHeader) {
+            console.log(authHeader);
+            return res.status(400).json({ message: 'User not logged in' });
+        }
+
+        const token = authHeader.split(' ')[1];
+        const decode = jwt.verify(token, secret);
+        const expiresAt = new Date(decode.exp * 1000);
+        const blacklistedToken = new BlacklistedToken({ token, expiresAt });
+        await blacklistedToken.save();
+        res.status(200).json({ message: 'User logged out' });
+    }    
+    catch (error) {
+        res.status(400).json({ message: error.message });
+        console.log(error.message);
+    }  
+})
+
+// token verification
+app.post('/api/users/verify', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) {
+            console.log(authHeader);
+            return res.status(400).json({ message: 'User not logged in' });
+        }
+
+        const token = authHeader.split(' ')[1];
+        const decoded = jwt.verify(token, secret);
+        const blacklistedToken = await BlacklistedToken.findOne({ token });
+        if ( blacklistedToken ) {
+            return res.status(401).json({ message: 'User logged out' })
+        }
+        res.status(200).json(decoded)
+    }
+    catch (error) {
+        res.status(400).json({ message: 'Invalid token'})
+        console.log(error.message)
     }
 })
 
+// User information
+app.get('/api/users', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) {
+            console.log(authHeader);
+            return res.status(400).json({ message: 'User not logged in' });
+        }
+
+        const token = authHeader.split(' ')[1];
+        const decoded = jwt.verify(token, secret);
+        const user = await User.findOne({ email: decoded.email});
+        res.status(200).json(user);
+    }
+    catch (error) {
+        res.status(400).json({ message: error.message });
+        console.log(error.message);
+    }
+})
+
+
+
+// course information
 // course addition
 app.post('/api/course/add', async (req, res) => {
     const {title, description, instructor, price, image } = req.body;
@@ -57,6 +144,10 @@ app.post('/api/course/add', async (req, res) => {
         res.status(400).json({ message: error.message })
     }
 })
+
+
+
+
 
 app.get('/api/users', (req, res) => {
     res.send('Users Route')
@@ -86,11 +177,6 @@ app.post('/api/users/forgotpassword', (req, res) => {
 app.post('/api/users/resetpassword', (req, res) => {
     res.send('Reset Password Route')
     console.log('Reset Password Route')
-})
-
-app.post('/api/users/verify', (req, res) => {
-    res.send('Verify Route')
-    console.log('Verify Route')
 })
 
 app.post('/api/users/verifyemail', (req, res) => {
