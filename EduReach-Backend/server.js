@@ -134,55 +134,99 @@ app.get('/api/users', async (req, res) => {
 // course information
 // course addition
 app.post('/api/course/add', async (req, res) => {
-    const {title, description, instructor, price, image } = req.body;
-    try{
-        const course = new Course({ title, description, instructor, price, image })
-        await course.save();
-        res.status(201).json(course);
+    // verify that user logged in
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+        return res.status(400).json({ message: 'User not logged in' });
     }
-    catch (error) {
+    else{
+        try{
+            const token = authHeader.split(' ')[1];
+            const decoded = jwt.verify(token, secret);
+            const blacklistedToken = await BlacklistedToken.findOne({ token });
+            if ( blacklistedToken ) {
+                return res.status(401).json({ message: 'User logged out' })
+            }
+            const user = await User.findOne({ email: decoded.email });
+            if (!user) {
+                return res.status(400).json({ message: 'User not logged in'})
+            }
+            
+            // verify that user is an instructor
+            if (user.role !== 'instructor'){
+                return res.status(400).json({ message: 'User not an instructor' })
+            }
+
+            const {title, description, price, image } = req.body;
+            const instructor = user._id;
+            try{
+                const course = new Course({ title, description, instructor, price, image })
+                await course.save();
+                res.status(201).json(course);
+            }
+            catch (error) {
+                res.status(400).json({ message: error.message })
+            }
+        }
+        catch(error){
+            console.log('Jwt error', error.message)
+            return res.status(400).json({ message: 'Invalid token' })
+        }
+    }
+})
+
+// get all courses
+app.get('/api/course/all', async (req, res) => {
+    try{
+        const courses = await Course.find({});
+        res.status(200).json(courses);
+    }
+    catch(error){
         res.status(400).json({ message: error.message })
     }
 })
 
-
-
-
-
-app.get('/api/users', (req, res) => {
-    res.send('Users Route')
-    console.log('Users Route')
+// update course
+app.patch('/api/course/update/:id', async (req, res) => {
+    try{
+        const authHeader = req.headers.authorization;
+        if (!authHeader) {
+            return res.status(400).json({ message: 'User not logged in' });
+        }
+        const token = authHeader.split(' ')[1];
+        const decoded = jwt.verify(token, secret);
+        const blacklistedToken = await BlacklistedToken.findOne({ token });
+        if ( blacklistedToken ) {
+            return res.status(401).json({ message: 'User logged out' });
+        }
+        const user = await User.findOne({ email: decoded.email });
+        if (!user) {
+            return res.status(400).json({ message: 'User not logged in' });
+        }
+        if (user.role !== 'instructor') {
+            return res.status(400).json({ message: 'User not an instructor' });
+        }
+        const course = await Course.findById(req.params.id);
+        if (!course) {
+            return res.status(400).json({ message: 'Course not found' });
+        }
+        if (course.instructor.toString() !== user._id.toString()) {
+            return res.status(400).json({ message: 'User not the instructor of this course' });
+        }
+        const { title, description, price, image } = req.body;
+        if (title) course.title = title;
+        if (description) course.description = description;
+        if (price) course.price = price;
+        if (image) course.image = image;
+        await course.save();
+        res.status(200).json(course);
+    }
+    catch(error){
+        console.log(error.message);
+        res.status(400).json({ message: error.message });
+    }
 })
 
-app.get('/api/users/id', (req, res) => {
-    res.send('User Route')
-    console.log('User Route')
-})
-
-app.get('/api/users/all', (req, res) => {
-    res.send('All Users Route')
-    console.log('All Users Route')
-})
-
-app.post('/api/users/update', (req, res) => {
-    res.send('Update Route')
-    console.log('Update Route')
-})
-
-app.post('/api/users/forgotpassword', (req, res) => {
-    res.send('Forgot Password Route')
-    console.log('Forgot Password Route')
-})
-
-app.post('/api/users/resetpassword', (req, res) => {
-    res.send('Reset Password Route')
-    console.log('Reset Password Route')
-})
-
-app.post('/api/users/verifyemail', (req, res) => {
-    res.send('Verify Email Route')
-    console.log('Verify Email Route')
-})
 
 app.listen(process.env.PORT || 5000, () => {
     console.log('Server is running on port 5000')

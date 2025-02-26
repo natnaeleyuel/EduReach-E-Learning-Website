@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 
 const courseSchema = new mongoose.Schema(
     {
-        title: {type: String, required: true},
+        title: {type: String, required: true, unique: true},
         description: {type: String, required: true},
         instructor: {type: mongoose.Schema.Types.ObjectId, ref: 'User'},
         price: {type: Number, required: true},
@@ -15,7 +15,7 @@ const courseSchema = new mongoose.Schema(
                 rating: {type: Number, required: true},
                 Comment: {type: String, required: true},
             }
-        ]
+        ],
     } 
 )
 
